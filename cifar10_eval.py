@@ -59,7 +59,8 @@ tf.app.flags.DEFINE_boolean('run_once', False,
                          """Whether to run eval only once.""")
 
 
-def eval_once(saver, summary_writer, top_k_op, summary_op):
+def eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy, 
+                update_op):
   """Run Eval once.
 
   Args:
@@ -93,8 +94,11 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
       true_count = 0  # Counts the number of correct predictions.
       total_sample_count = num_iter * FLAGS.batch_size
       step = 0
+      sess.run(tf.local_variables_initializer())
       while step < num_iter and not coord.should_stop():
-        predictions = sess.run([top_k_op])
+        predictions, _, acc_update= sess.run([top_k_op, mean_accuracy, update_op])
+        #predictions = sess.run([top_k_op])
+        print('acc_update = %s ' % (acc_update))
         true_count += np.sum(predictions)
         step += 1
 
@@ -126,7 +130,11 @@ def evaluate():
 
     # Calculate predictions.
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
+    targetIndex = tf.argmax(logits, axis=1);
 
+    mean_accuracy, update_op = tf.metrics.mean_per_class_accuracy(targetIndex,
+                                                                  labels,
+                                                                  10)
     # Restore the moving average version of the learned variables for eval.
     variable_averages = tf.train.ExponentialMovingAverage(
         cifar10.MOVING_AVERAGE_DECAY)
@@ -139,7 +147,8 @@ def evaluate():
     summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
 
     while True:
-      eval_once(saver, summary_writer, top_k_op, summary_op)
+      eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy, 
+                update_op)
       if FLAGS.run_once:
         break
       time.sleep(FLAGS.eval_interval_secs)
