@@ -17,3 +17,10 @@ cifar10_train.py = train dataset
 cifar10_eval.py = test dataset
 
 http://tensorflow.org/tutorials/deep_cnn/
+
+cifar10_eval.py output:
+![](https://uploaddeimagens.com.br/imagens/cifar10_eval-output1-png)
+
+cifar10_train.py output:
+![](https://uploaddeimagens.com.br/imagens/cifar10_train-output-png)
+
