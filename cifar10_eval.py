@@ -37,7 +37,7 @@ from __future__ import print_function
 from datetime import datetime
 import math
 import time
-
+from tensorflow.keras.callbacks import TensorBoard
 import numpy as np
 import tensorflow as tf
 
@@ -51,13 +51,17 @@ tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
 tf.app.flags.DEFINE_string('checkpoint_dir', './Drive/My Drive/Camilla Choquet/checkpoint_max',
                            """Directory where to read model checkpoints.""")
-tf.app.flags.DEFINE_integer('eval_interval_secs', 1,
+tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
-tf.app.flags.DEFINE_integer('num_examples', 10,
+tf.app.flags.DEFINE_integer('num_examples', 1500,
                             """Number of examples to run.""")
 tf.app.flags.DEFINE_boolean('run_once', False,
                          """Whether to run eval only once.""")
 
+
+_BATCH_SIZE = 128
+_CLASS_SIZE = 10
+_SAVE_PATH = "./tensorboard/cifar-10-v1.0.0/"
 
 def eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy, 
                 update_op):
@@ -98,7 +102,7 @@ def eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy,
       while step < num_iter and not coord.should_stop():
         predictions, _, acc_update= sess.run([top_k_op, mean_accuracy, update_op])
         #predictions = sess.run([top_k_op])
-        print('acc_update = %s ' % (acc_update))
+        print('acc_update = %s ' % (acc_update)) #ACCURACY FOR EACH CLASS IN THE STEP
         true_count += np.sum(predictions)
         step += 1
 
@@ -126,7 +130,13 @@ def evaluate():
 
     # Build a Graph that computes the logits predictions from the
     # inference model.
-    logits = cifar10.inference(images, [0.9152195 , 0.6225763 , 0.76836467, 1.6938382], [0.9965107, 0.9673962, 0.9922141, 1.0438787])
+    pool_weights = tf.get_variable('pool_weights', [1,1,1,1,4], 
+        tf.float32, initializer=tf.constant_initializer([1,1,1,1]))
+    pool_weights2 = tf.get_variable('pool_weights2', [1,1,1,1,4], 
+        tf.float32, initializer=tf.constant_initializer([1,1,1,1]))
+
+    logits = cifar10.inference(images, pool_weights, pool_weights2)
+
 
     # Calculate predictions.
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
