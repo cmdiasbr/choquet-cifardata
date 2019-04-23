@@ -22,5 +22,5 @@ cifar10_eval.py output:
 ![](https://uploaddeimagens.com.br/imagens/cifar10_eval-output1-png)
 
 cifar10_train.py output:
-![](https://uploaddeimagens.com.br/imagens/cifar10_train-output-png)
+![](https://uploaddeimagens.com.br/images/002/058/055/original/cifar10_train-output.png?1556035678)
 
