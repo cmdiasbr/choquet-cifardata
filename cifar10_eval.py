@@ -14,20 +14,16 @@
 # ==============================================================================
 
 """Evaluation for CIFAR-10.
-
 Accuracy:
 cifar10_train.py achieves 83.0% accuracy after 100K steps (256 epochs
 of data) as judged by cifar10_eval.py.
-
 Speed:
 On a single Tesla K40, cifar10_train.py processes a single batch of 128 images
 in 0.25-0.35 sec (i.e. 350 - 600 images /sec). The model reaches ~86%
 accuracy after 100K steps in 8 hours of training time.
-
 Usage:
 Please see the tutorial and website for how to download the CIFAR-10
 data set, compile the program and train the model.
-
 http://tensorflow.org/tutorials/deep_cnn/
 """
 from __future__ import absolute_import
@@ -40,6 +36,7 @@ import time
 from tensorflow.keras.callbacks import TensorBoard
 import numpy as np
 import tensorflow as tf
+import pandas as pd
 
 import cifar10
 
@@ -49,7 +46,7 @@ tf.app.flags.DEFINE_string('eval_dir', './tmp/cifar10_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './Drive/My Drive/Camilla Choquet/checkpoint_max',
+tf.app.flags.DEFINE_string('checkpoint_dir', './checkpoint_choquet_buena',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -62,17 +59,19 @@ tf.app.flags.DEFINE_boolean('run_once', False,
 _BATCH_SIZE = 128
 _CLASS_SIZE = 10
 _SAVE_PATH = "./tensorboard/cifar-10-v1.0.0/"
+CLASS_NAMES = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
 
-def eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy, 
+def eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy,
                 update_op):
+  global resultados, CLASS_NAMES
   """Run Eval once.
-
   Args:
     saver: Saver.
     summary_writer: Summary writer.
     top_k_op: Top K op.
     summary_op: Summary op.
   """
+
   with tf.Session() as sess:
     ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
     if ckpt and ckpt.model_checkpoint_path:
@@ -101,8 +100,10 @@ def eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy,
       sess.run(tf.local_variables_initializer())
       while step < num_iter and not coord.should_stop():
         predictions, _, acc_update= sess.run([top_k_op, mean_accuracy, update_op])
+        step_results = pd.DataFrame(np.array(acc_update).reshape((1, 10)), columns=CLASS_NAMES)
+        resultados = resultados.append(step_results)
         #predictions = sess.run([top_k_op])
-        print('acc_update = %s ' % (acc_update)) #ACCURACY FOR EACH CLASS IN THE STEP
+        print((step_results)) #ACCURACY FOR EACH CLASS IN THE STEP
         true_count += np.sum(predictions)
         step += 1
 
@@ -130,17 +131,17 @@ def evaluate():
 
     # Build a Graph that computes the logits predictions from the
     # inference model.
-    pool_weights = tf.get_variable('pool_weights', [1,1,1,1,4], 
-        tf.float32, initializer=tf.constant_initializer([1,1,1,1]))
-    pool_weights2 = tf.get_variable('pool_weights2', [1,1,1,1,4], 
-        tf.float32, initializer=tf.constant_initializer([1,1,1,1]))
+    pool_weights = tf.get_variable('pool_weights', [1,1,1,1,4],
+        tf.float32, initializer=tf.constant_initializer([0.9152195 , 0.6225763 , 0.76836467, 1.6938382]))
+    pool_weights2 = tf.get_variable('pool_weights2', [1,1,1,1,4],
+        tf.float32, initializer=tf.constant_initializer([0.9965107, 0.9673962, 0.9922141, 1.0438787]))
 
     logits = cifar10.inference(images, pool_weights, pool_weights2)
 
 
     # Calculate predictions.
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
-    targetIndex = tf.argmax(logits, axis=1);
+    targetIndex = tf.argmax(logits, axis=1)
 
     mean_accuracy, update_op = tf.metrics.mean_per_class_accuracy(targetIndex,
                                                                   labels,
@@ -157,8 +158,9 @@ def evaluate():
     summary_writer = tf.summary.FileWriter(FLAGS.eval_dir, g)
 
     while True:
-      eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy, 
+      eval_once(saver, summary_writer, top_k_op, summary_op, mean_accuracy,
                 update_op)
+      resultados.to_csv('Measure_confmat.csv')
       if FLAGS.run_once:
         break
       time.sleep(FLAGS.eval_interval_secs)
@@ -173,4 +175,5 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
 if __name__ == '__main__':
+  resultados = pd.DataFrame(columns=CLASS_NAMES)
   tf.app.run()
